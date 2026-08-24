@@ -3,9 +3,9 @@ import random
 import plotly.graph_objects as go
 
 
-# --------------------------------------------------
+# ==================================================
 # 기본 설정
-# --------------------------------------------------
+# ==================================================
 
 st.set_page_config(
     page_title="주식 투자 시뮬레이터",
@@ -17,13 +17,13 @@ st.title("📈 주식 투자 시뮬레이터")
 st.caption("축제 주식 동아리 이벤트")
 
 
-# --------------------------------------------------
+# ==================================================
 # 주식 정보
-# --------------------------------------------------
+# ==================================================
 
 stocks = ["A", "B", "C", "D", "E", "F"]
 
-# 각 회사의 초기 가격 범위
+# 처음 생성될 때의 가격 범위
 price_ranges = {
     "A": (30000, 45000),
     "B": (35000, 50000),
@@ -33,21 +33,14 @@ price_ranges = {
     "F": (55000, 80000)
 }
 
-# 각 회사의 변동 범위
-# 숫자가 클수록 한 번에 움직일 수 있는 폭이 커짐
-change_ranges = {
-    "A": (5000, 5000),
-    "B": (5000, 10000),
-    "C": (5000, 10000),
-    "D": (5000, 10000),
-    "E": (5000, 15000),
-    "F": (5000, 15000)
-}
+# 게임 중 움직일 수 있는 전체 가격 범위
+market_min = 20000
+market_max = 120000
 
 
-# --------------------------------------------------
-# 최초 가격 생성
-# --------------------------------------------------
+# ==================================================
+# 최초 주가 생성
+# ==================================================
 
 if "prices" not in st.session_state:
 
@@ -64,9 +57,9 @@ if "prices" not in st.session_state:
         )
 
 
-# --------------------------------------------------
-# 이전 가격 저장
-# --------------------------------------------------
+# ==================================================
+# 이전 가격
+# ==================================================
 
 if "previous_prices" not in st.session_state:
 
@@ -76,9 +69,21 @@ if "previous_prices" not in st.session_state:
     }
 
 
-# --------------------------------------------------
-# 가격 변동 함수
-# --------------------------------------------------
+# ==================================================
+# 현재 가격 변동률
+# ==================================================
+
+if "change_rates" not in st.session_state:
+
+    st.session_state.change_rates = {
+        stock: 0
+        for stock in stocks
+    }
+
+
+# ==================================================
+# 주가 변동
+# ==================================================
 
 def change_prices():
 
@@ -86,111 +91,215 @@ def change_prices():
 
         old_price = st.session_state.prices[stock]
 
-        minimum, maximum = change_ranges[stock]
+        # -------------------------------
+        # 변동폭 설정
+        # -------------------------------
 
-        # 상승 또는 하락
+        chance = random.random()
+
+        # 10% 확률로 급격한 변동
+        if chance < 0.10:
+
+            change = random.choice([
+                15000,
+                20000,
+                25000,
+                30000
+            ])
+
+        # 25% 확률로 큰 변동
+        elif chance < 0.35:
+
+            change = random.choice([
+                10000,
+                15000,
+                20000
+            ])
+
+        # 나머지는 일반적인 변동
+        else:
+
+            change = random.choice([
+                5000,
+                5000,
+                5000,
+                10000
+            ])
+
+        # 상승 / 하락
         direction = random.choice([-1, 1])
 
-        # 5,000원 단위로 변화
-        change = random.randrange(
-            minimum,
-            maximum + 1,
-            5000
-        )
+        new_price = old_price + direction * change
 
-        new_price = old_price + (direction * change)
-
-        # 지나치게 낮아지거나 높아지는 것 방지
-        minimum_price = price_ranges[stock][0]
-        maximum_price = price_ranges[stock][1]
-
+        # 전체 가격 범위 제한
         new_price = max(
-            minimum_price,
-            min(new_price, maximum_price)
+            market_min,
+            min(new_price, market_max)
         )
 
-        # 혹시 모를 단위 오류 방지
+        # 무조건 5,000원 단위
         new_price = round(new_price / 5000) * 5000
 
+        # 이전 가격 저장
         st.session_state.previous_prices[stock] = old_price
+
+        # 새 가격 저장
         st.session_state.prices[stock] = int(new_price)
 
+        # 증감률 계산
+        if old_price != 0:
 
-# --------------------------------------------------
-# 현재 가격 및 등락률
-# --------------------------------------------------
+            rate = (
+                (new_price - old_price)
+                / old_price
+            ) * 100
 
-current_prices = []
-change_rates = []
+        else:
 
-for stock in stocks:
+            rate = 0
 
-    current_price = st.session_state.prices[stock]
-    previous_price = st.session_state.previous_prices[stock]
+        st.session_state.change_rates[stock] = rate
 
-    if previous_price == 0:
-        rate = 0
+
+# ==================================================
+# 현재 가격
+# ==================================================
+
+current_prices = [
+    st.session_state.prices[stock]
+    for stock in stocks
+]
+
+change_rates = [
+    st.session_state.change_rates[stock]
+    for stock in stocks
+]
+
+
+# ==================================================
+# 막대 색상
+# ==================================================
+
+bar_colors = []
+
+for rate in change_rates:
+
+    if rate > 0:
+        # 상승 = 빨간색
+        bar_colors.append("#E53935")
+
+    elif rate < 0:
+        # 하락 = 파란색
+        bar_colors.append("#1E88E5")
+
     else:
-        rate = (
-            (current_price - previous_price)
-            / previous_price
-        ) * 100
-
-    current_prices.append(current_price)
-    change_rates.append(rate)
+        # 변동 없음
+        bar_colors.append("#777777")
 
 
-# --------------------------------------------------
+# ==================================================
+# 그래프용 증감률 텍스트
+# ==================================================
+
+change_text = []
+
+for rate in change_rates:
+
+    if rate > 0:
+
+        change_text.append(
+            f"▲ {rate:.2f}%"
+        )
+
+    elif rate < 0:
+
+        change_text.append(
+            f"▼ {abs(rate):.2f}%"
+        )
+
+    else:
+
+        change_text.append(
+            "― 0.00%"
+        )
+
+
+# ==================================================
 # 그래프
-# --------------------------------------------------
+# ==================================================
 
 fig = go.Figure()
 
 fig.add_trace(
     go.Bar(
+
         x=stocks,
+
         y=current_prices,
 
         text=[
-            f"{price:,}원"
-            for price in current_prices
+            f"{price:,}원<br>{change}"
+            for price, change in zip(
+                current_prices,
+                change_text
+            )
         ],
 
         textposition="outside",
 
-        width=0.55,
+        textfont=dict(
+            size=13
+        ),
 
         marker=dict(
+            color=bar_colors,
             cornerradius=10
-        )
+        ),
+
+        width=0.55,
+
+        hovertemplate=
+        "<b>%{x} 주식</b><br>" +
+        "현재 가격: %{y:,}원" +
+        "<extra></extra>"
     )
 )
 
+
 fig.update_layout(
 
-    height=400,
+    height=430,
 
     margin=dict(
         l=20,
         r=20,
-        t=40,
+        t=55,
         b=20
     ),
 
     xaxis=dict(
+
         title=None,
+
         tickangle=0,
+
         tickfont=dict(
             size=16
         ),
+
         fixedrange=True
     ),
 
     yaxis=dict(
+
         title=None,
+
         tickformat=",",
+
         dtick=10000,
+
         fixedrange=True,
+
         showgrid=True
     ),
 
@@ -201,18 +310,21 @@ fig.update_layout(
     showlegend=False
 )
 
+
 st.plotly_chart(
     fig,
+
     use_container_width=True,
+
     config={
         "displayModeBar": False
     }
 )
 
 
-# --------------------------------------------------
-# 종목별 가격
-# --------------------------------------------------
+# ==================================================
+# 현재 주가
+# ==================================================
 
 st.subheader("현재 주가")
 
@@ -225,50 +337,38 @@ for i, stock in enumerate(stocks):
         price = current_prices[i]
         rate = change_rates[i]
 
-        if rate > 0:
-            rate_text = f"▲ {rate:.2f}%"
-        elif rate < 0:
-            rate_text = f"▼ {abs(rate):.2f}%"
-        else:
-            rate_text = "― 0.00%"
-
         st.markdown(
-            f"""
-            <div style="
-                text-align: center;
-                padding: 10px 2px;
-                border-radius: 10px;
-                border: 1px solid rgba(128,128,128,0.25);
-            ">
-                <div style="
-                    font-size: 17px;
-                    font-weight: 700;
-                ">
-                    {stock}
-                </div>
-
-                <div style="
-                    font-size: 14px;
-                    margin-top: 5px;
-                ">
-                    {price:,}원
-                </div>
-
-                <div style="
-                    font-size: 13px;
-                    margin-top: 4px;
-                ">
-                    {rate_text}
-                </div>
-            </div>
-            """,
-            unsafe_allow_html=True
+            f"**{stock}**"
         )
 
+        st.write(
+            f"{price:,}원"
+        )
 
-# --------------------------------------------------
+        if rate > 0:
+
+            st.markdown(
+                f"<span style='color:#E53935; font-weight:bold;'>▲ {rate:.2f}%</span>",
+                unsafe_allow_html=True
+            )
+
+        elif rate < 0:
+
+            st.markdown(
+                f"<span style='color:#1E88E5; font-weight:bold;'>▼ {abs(rate):.2f}%</span>",
+                unsafe_allow_html=True
+            )
+
+        else:
+
+            st.write(
+                "― 0.00%"
+            )
+
+
+# ==================================================
 # 주가 변동 버튼
-# --------------------------------------------------
+# ==================================================
 
 st.write("")
 
@@ -276,5 +376,7 @@ if st.button(
     "📈 주가 변동",
     use_container_width=True
 ):
+
     change_prices()
+
     st.rerun()
