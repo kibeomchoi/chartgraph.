@@ -33,14 +33,15 @@ price_ranges = {
     "F": (55000, 80000)
 }
 
-# 각 회사의 가격 변동성
-volatility = {
-    "A": 0.04,
-    "B": 0.05,
-    "C": 0.07,
-    "D": 0.08,
-    "E": 0.09,
-    "F": 0.10
+# 각 회사의 변동 범위
+# 숫자가 클수록 한 번에 움직일 수 있는 폭이 커짐
+change_ranges = {
+    "A": (5000, 5000),
+    "B": (5000, 10000),
+    "C": (5000, 10000),
+    "D": (5000, 10000),
+    "E": (5000, 15000),
+    "F": (5000, 15000)
 }
 
 
@@ -85,50 +86,38 @@ def change_prices():
 
         old_price = st.session_state.prices[stock]
 
-        # 종목별 변동성
-        max_change = volatility[stock]
+        minimum, maximum = change_ranges[stock]
 
-        # -변동성 ~ +변동성 사이에서 랜덤 변동
-        change_rate = random.uniform(
-            -max_change,
-            max_change
+        # 상승 또는 하락
+        direction = random.choice([-1, 1])
+
+        # 5,000원 단위로 변화
+        change = random.randrange(
+            minimum,
+            maximum + 1,
+            5000
         )
 
-        new_price = old_price * (1 + change_rate)
+        new_price = old_price + (direction * change)
 
-        # 너무 급격한 가격 변동 방지
-        minimum, maximum = price_ranges[stock]
-
-        minimum_limit = minimum * 0.7
-        maximum_limit = maximum * 1.3
+        # 지나치게 낮아지거나 높아지는 것 방지
+        minimum_price = price_ranges[stock][0]
+        maximum_price = price_ranges[stock][1]
 
         new_price = max(
-            minimum_limit,
-            min(new_price, maximum_limit)
+            minimum_price,
+            min(new_price, maximum_price)
         )
 
-        # 100원 단위로 정리
-        new_price = round(new_price / 100) * 100
+        # 혹시 모를 단위 오류 방지
+        new_price = round(new_price / 5000) * 5000
 
         st.session_state.previous_prices[stock] = old_price
         st.session_state.prices[stock] = int(new_price)
 
 
 # --------------------------------------------------
-# 가격 변동 버튼
-# --------------------------------------------------
-
-st.subheader("현재 주식 가격")
-
-if st.button(
-    "📈 다음 주가 확인",
-    use_container_width=True
-):
-    change_prices()
-
-
-# --------------------------------------------------
-# 현재 가격 및 등락률 계산
+# 현재 가격 및 등락률
 # --------------------------------------------------
 
 current_prices = []
@@ -200,6 +189,7 @@ fig.update_layout(
     yaxis=dict(
         title=None,
         tickformat=",",
+        dtick=10000,
         fixedrange=True,
         showgrid=True
     ),
@@ -211,7 +201,6 @@ fig.update_layout(
     showlegend=False
 )
 
-
 st.plotly_chart(
     fig,
     use_container_width=True,
@@ -222,10 +211,10 @@ st.plotly_chart(
 
 
 # --------------------------------------------------
-# 가격 및 등락률
+# 종목별 가격
 # --------------------------------------------------
 
-st.subheader("종목별 현재 가격")
+st.subheader("현재 주가")
 
 cols = st.columns(6)
 
@@ -247,25 +236,27 @@ for i, stock in enumerate(stocks):
             f"""
             <div style="
                 text-align: center;
-                padding: 8px;
+                padding: 10px 2px;
+                border-radius: 10px;
+                border: 1px solid rgba(128,128,128,0.25);
             ">
                 <div style="
-                    font-size: 18px;
-                    font-weight: bold;
+                    font-size: 17px;
+                    font-weight: 700;
                 ">
                     {stock}
                 </div>
 
                 <div style="
                     font-size: 14px;
-                    margin-top: 4px;
+                    margin-top: 5px;
                 ">
                     {price:,}원
                 </div>
 
                 <div style="
                     font-size: 13px;
-                    margin-top: 3px;
+                    margin-top: 4px;
                 ">
                     {rate_text}
                 </div>
@@ -273,3 +264,17 @@ for i, stock in enumerate(stocks):
             """,
             unsafe_allow_html=True
         )
+
+
+# --------------------------------------------------
+# 주가 변동 버튼
+# --------------------------------------------------
+
+st.write("")
+
+if st.button(
+    "📈 주가 변동",
+    use_container_width=True
+):
+    change_prices()
+    st.rerun()
