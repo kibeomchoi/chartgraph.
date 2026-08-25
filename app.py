@@ -20,8 +20,6 @@ st.set_page_config(
 
 STOCKS = ["A", "B", "C", "D", "E", "F"]
 
-# 최초 주가 범위
-# 모두 15만원으로 최소 1주 구매 가능
 INITIAL_RANGES = {
     "A": (30000, 45000),
     "B": (35000, 50000),
@@ -108,10 +106,7 @@ def change_market():
 
         chance = random.random()
 
-        # -------------------------------------------------
         # 2% : 초대형 급등 / 급락
-        # -------------------------------------------------
-
         if chance < 0.02:
 
             change = random.choice([
@@ -122,10 +117,7 @@ def change_market():
                 50000
             ])
 
-        # -------------------------------------------------
         # 8% : 급등 / 급락
-        # -------------------------------------------------
-
         elif chance < 0.10:
 
             change = random.choice([
@@ -134,10 +126,7 @@ def change_market():
                 30000
             ])
 
-        # -------------------------------------------------
         # 25% : 큰 변동
-        # -------------------------------------------------
-
         elif chance < 0.35:
 
             change = random.choice([
@@ -146,10 +135,7 @@ def change_market():
                 20000
             ])
 
-        # -------------------------------------------------
         # 65% : 일반 변동
-        # -------------------------------------------------
-
         else:
 
             change = random.choice([
@@ -169,18 +155,18 @@ def change_market():
             min(new_price, MARKET_MAX)
         )
 
-        # 반드시 5,000원 단위
+        # 5,000원 단위 유지
         new_price = round(
             new_price / 5000
         ) * 5000
 
-        # 이전 가격 저장
+        # 이전 가격
         st.session_state.previous_prices[stock] = old_price
 
-        # 새로운 가격
+        # 현재 가격
         st.session_state.prices[stock] = int(new_price)
 
-        # 등락률 계산
+        # 등락률
         if old_price > 0:
 
             rate = (
@@ -203,8 +189,7 @@ def change_market():
 
 def reset_player():
 
-    # 시장 가격은 유지
-    # 참가자 정보만 초기화
+    # 주식시장 가격은 그대로 유지
 
     st.session_state.player_number += 1
 
@@ -223,10 +208,10 @@ def reset_player():
 
 
 # =========================================================
-# 평가금액 계산
+# 주식 평가금액 계산
 # =========================================================
 
-def calculate_final_value():
+def calculate_stock_value():
 
     total = 0
 
@@ -252,13 +237,15 @@ def show_market_result():
         f"Round {st.session_state.round}"
     )
 
-    st.write("이번 주식시장의 변동 결과입니다.")
+    st.write(
+        "이번 주식시장의 변동 결과입니다."
+    )
 
     st.divider()
 
-    # -----------------------------------------------------
-    # 주식별 변동 결과
-    # -----------------------------------------------------
+    # =====================================================
+    # 주식별 변동
+    # =====================================================
 
     for stock in STOCKS:
 
@@ -274,7 +261,9 @@ def show_market_result():
             st.session_state.change_rates[stock]
         )
 
-        col1, col2, col3 = st.columns([1, 1.5, 1])
+        col1, col2, col3 = st.columns(
+            [1, 1.5, 1]
+        )
 
         with col1:
 
@@ -308,92 +297,130 @@ def show_market_result():
                     "― 0.00%"
                 )
 
+
     st.divider()
 
-    # -----------------------------------------------------
+
+    # =====================================================
     # 투자 결과
-    # -----------------------------------------------------
+    # =====================================================
 
-    final_value = calculate_final_value()
+    st.subheader("💰 최종 투자 결과")
 
+    # 현재 보유 주식의 평가금액
+    stock_value = calculate_stock_value()
+
+    # 처음 투자했던 금액
     investment = (
         st.session_state.investment_amount
     )
 
-    profit = final_value - investment
+    # 참가자가 투자하지 않고 남겨둔 현금
+    total_money = (
+        st.session_state.player_coins
+        * COIN_VALUE
+    )
 
-    if investment > 0:
+    remaining_money = (
+        total_money
+        - investment
+    )
 
-        profit_rate = (
-            profit / investment
+    # -----------------------------------------------------
+    # 핵심 변경 부분
+    #
+    # 최종 총자산 =
+    # 현재 주식 평가금액 + 남은 현금
+    # -----------------------------------------------------
+
+    final_total_value = (
+        stock_value
+        + remaining_money
+    )
+
+    # 처음 가지고 있던 총자산 대비 수익
+    total_profit = (
+        final_total_value
+        - total_money
+    )
+
+    if total_money > 0:
+
+        total_profit_rate = (
+            total_profit
+            / total_money
         ) * 100
 
     else:
 
-        profit_rate = 0
+        total_profit_rate = 0
 
 
-    st.subheader("💰 투자 결과")
+    # =====================================================
+    # 결과 표시
+    # =====================================================
 
-
-    result1, result2 = st.columns(2)
+    result1, result2, result3 = st.columns(3)
 
     with result1:
 
         st.metric(
-            "투자금액",
-            f"{investment:,}원"
+            "처음 자산",
+            f"{total_money:,}원"
         )
 
     with result2:
 
         st.metric(
-            "현재 평가금액",
-            f"{final_value:,}원"
+            "현재 총자산",
+            f"{final_total_value:,}원"
         )
-
-
-    result3, result4 = st.columns(2)
 
     with result3:
 
-        if profit >= 0:
-
-            st.metric(
-                "수익",
-                f"+{profit:,}원"
-            )
-
-        else:
-
-            st.metric(
-                "손실",
-                f"{profit:,}원"
-            )
-
-    with result4:
-
         st.metric(
-            "수익률",
-            f"{profit_rate:+.2f}%"
+            "총 수익률",
+            f"{total_profit_rate:+.2f}%"
         )
 
 
     # -----------------------------------------------------
-    # 수익 / 손실 메시지
+    # 세부 자산
     # -----------------------------------------------------
 
-    if profit > 0:
+    detail1, detail2 = st.columns(2)
+
+    with detail1:
+
+        st.write(
+            f"📊 현재 주식 평가금액  "
+            f"**{stock_value:,}원**"
+        )
+
+    with detail2:
+
+        st.write(
+            f"💵 남은 현금  "
+            f"**{remaining_money:,}원**"
+        )
+
+
+    # =====================================================
+    # 수익 / 손실
+    # =====================================================
+
+    if total_profit > 0:
 
         st.success(
-            f"🎉 축하합니다! "
-            f"{profit:,}원 수익입니다."
+            f"🎉 총 **+{total_profit:,}원** "
+            f"수익입니다!"
         )
 
-    elif profit < 0:
+    elif total_profit < 0:
 
         st.error(
-            f"📉 {abs(profit):,}원 손실입니다."
+            f"📉 총 **{abs(total_profit):,}원** "
+            f"손실입니다."
         )
 
     else:
@@ -406,9 +433,9 @@ def show_market_result():
     st.divider()
 
 
-    # -----------------------------------------------------
+    # =====================================================
     # 다음 참가자
-    # -----------------------------------------------------
+    # =====================================================
 
     if st.button(
         "👤 다음 참가자",
@@ -449,7 +476,6 @@ with left:
 
     st.subheader("📊 현재 주식시장")
 
-
     current_prices = [
         st.session_state.prices[stock]
         for stock in STOCKS
@@ -461,9 +487,9 @@ with left:
     ]
 
 
-    # -----------------------------------------------------
-    # 막대 색상
-    # -----------------------------------------------------
+    # =====================================================
+    # 그래프 색상
+    # =====================================================
 
     bar_colors = []
 
@@ -482,9 +508,9 @@ with left:
             bar_colors.append("#888888")
 
 
-    # -----------------------------------------------------
+    # =====================================================
     # 그래프 텍스트
-    # -----------------------------------------------------
+    # =====================================================
 
     graph_text = []
 
@@ -514,9 +540,9 @@ with left:
             )
 
 
-    # -----------------------------------------------------
+    # =====================================================
     # 그래프
-    # -----------------------------------------------------
+    # =====================================================
 
     fig = go.Figure()
 
@@ -591,9 +617,9 @@ with left:
     )
 
 
-    # -----------------------------------------------------
+    # =====================================================
     # 그래프 밑 종목 정보
-    # -----------------------------------------------------
+    # =====================================================
 
     stock_info = st.columns(6)
 
@@ -601,9 +627,13 @@ with left:
 
         with stock_info[i]:
 
-            price = st.session_state.prices[stock]
+            price = (
+                st.session_state.prices[stock]
+            )
 
-            rate = st.session_state.change_rates[stock]
+            rate = (
+                st.session_state.change_rates[stock]
+            )
 
             st.markdown(
                 f"**{stock}**"
@@ -650,11 +680,10 @@ with right:
 
 
     # =====================================================
-    # 자산
+    # 참가자 자산
     # =====================================================
 
     asset_col1, asset_col2 = st.columns(2)
-
 
     with asset_col1:
 
@@ -667,8 +696,9 @@ with right:
             key="current_coins"
         )
 
-
-    total_money = coins * COIN_VALUE
+    total_money = (
+        coins * COIN_VALUE
+    )
 
 
     with asset_col2:
@@ -685,16 +715,38 @@ with right:
 
     st.subheader("💵 투자하기")
 
-
     buy_quantities = {}
 
 
-    # -----------------------------------------------------
-    # A B C
-    # -----------------------------------------------------
+    # =====================================================
+    # 회사명 + 가격 표시 스타일
+    # =====================================================
+
+    st.markdown(
+        """
+        <style>
+        .stock-name {
+            font-size: 17px;
+            font-weight: 700;
+            margin-bottom: 0px;
+        }
+
+        .stock-price {
+            font-size: 14px;
+            margin-top: -3px;
+            margin-bottom: 4px;
+        }
+        </style>
+        """,
+        unsafe_allow_html=True
+    )
+
+
+    # =====================================================
+    # A / B / C
+    # =====================================================
 
     row1 = st.columns(3)
-
 
     for i, stock in enumerate(
         ["A", "B", "C"]
@@ -706,25 +758,31 @@ with right:
                 st.session_state.prices[stock]
             )
 
+            st.markdown(
+                f"<div class='stock-name'>{stock}주</div>",
+                unsafe_allow_html=True
+            )
+
+            st.markdown(
+                f"<div class='stock-price'>{price:,}원 / 주</div>",
+                unsafe_allow_html=True
+            )
+
             buy_quantities[stock] = st.number_input(
-                f"{stock}주",
+                "수량",
                 min_value=0,
                 step=1,
                 value=0,
+                label_visibility="collapsed",
                 key=f"player_{st.session_state.player_number}_{stock}"
             )
 
-            st.caption(
-                f"{price:,}원 / 주"
-            )
 
-
-    # -----------------------------------------------------
-    # D E F
-    # -----------------------------------------------------
+    # =====================================================
+    # D / E / F
+    # =====================================================
 
     row2 = st.columns(3)
-
 
     for i, stock in enumerate(
         ["D", "E", "F"]
@@ -736,16 +794,23 @@ with right:
                 st.session_state.prices[stock]
             )
 
+            st.markdown(
+                f"<div class='stock-name'>{stock}주</div>",
+                unsafe_allow_html=True
+            )
+
+            st.markdown(
+                f"<div class='stock-price'>{price:,}원 / 주</div>",
+                unsafe_allow_html=True
+            )
+
             buy_quantities[stock] = st.number_input(
-                f"{stock}주",
+                "수량",
                 min_value=0,
                 step=1,
                 value=0,
+                label_visibility="collapsed",
                 key=f"player_{st.session_state.player_number}_{stock}"
-            )
-
-            st.caption(
-                f"{price:,}원 / 주"
             )
 
 
@@ -754,7 +819,6 @@ with right:
     # =====================================================
 
     total_investment = 0
-
 
     for stock in STOCKS:
 
@@ -770,12 +834,11 @@ with right:
     )
 
 
-    # -----------------------------------------------------
+    # =====================================================
     # 금액 표시
-    # -----------------------------------------------------
+    # =====================================================
 
     money_col1, money_col2 = st.columns(2)
-
 
     with money_col1:
 
@@ -783,7 +846,6 @@ with right:
             "투자금액",
             f"{total_investment:,}원"
         )
-
 
     with money_col2:
 
@@ -816,16 +878,13 @@ with right:
 
         else:
 
-            # 코인 저장
             st.session_state.player_coins = coins
 
-            # 투자 주식 저장
             st.session_state.holdings = {
                 stock: buy_quantities[stock]
                 for stock in STOCKS
             }
 
-            # 투자금액 저장
             st.session_state.investment_amount = (
                 total_investment
             )
@@ -840,7 +899,7 @@ with right:
 
 
     # =====================================================
-    # 주가 변동
+    # 게임 진행
     # =====================================================
 
     st.divider()
@@ -862,11 +921,8 @@ with right:
 
         else:
 
-            # 시장 변동
             change_market()
 
-            # 결과 존재
             st.session_state.result_available = True
 
-            # 팝업 열기
             show_market_result()
