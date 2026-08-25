@@ -305,122 +305,114 @@ def show_market_result():
     # 투자 결과
     # =====================================================
 
-    st.subheader("💰 최종 투자 결과")
+    st.subheader("💰 투자 결과")
 
-    # 현재 보유 주식의 평가금액
+    # 현재 주식 평가금액
     stock_value = calculate_stock_value()
 
-    # 처음 투자했던 금액
-    investment = (
-        st.session_state.investment_amount
-    )
-
-    # 참가자가 투자하지 않고 남겨둔 현금
+    # 참가자가 처음 가지고 있던 총자산
     total_money = (
         st.session_state.player_coins
         * COIN_VALUE
     )
 
+    # 실제 투자하지 않고 남겨둔 현금
     remaining_money = (
         total_money
-        - investment
+        - st.session_state.investment_amount
     )
 
-    # -----------------------------------------------------
-    # 핵심 변경 부분
+    # =====================================================
+    # 현재 잔액
     #
-    # 최종 총자산 =
     # 현재 주식 평가금액 + 남은 현금
-    # -----------------------------------------------------
+    # =====================================================
 
-    final_total_value = (
+    current_balance = (
         stock_value
         + remaining_money
     )
 
-    # 처음 가지고 있던 총자산 대비 수익
-    total_profit = (
-        final_total_value
+    # 처음 자산 대비 실제 수익
+    profit = (
+        current_balance
         - total_money
     )
 
+    # 전체 자산 기준 수익률
     if total_money > 0:
 
-        total_profit_rate = (
-            total_profit
+        profit_rate = (
+            profit
             / total_money
         ) * 100
 
     else:
 
-        total_profit_rate = 0
+        profit_rate = 0
 
 
     # =====================================================
     # 결과 표시
     # =====================================================
 
-    result1, result2, result3 = st.columns(3)
+    result1, result2 = st.columns(2)
 
     with result1:
 
         st.metric(
-            "처음 자산",
-            f"{total_money:,}원"
+            "투자금액",
+            f"{st.session_state.investment_amount:,}원"
         )
 
     with result2:
 
         st.metric(
-            "현재 총자산",
-            f"{final_total_value:,}원"
+            "현재 잔액",
+            f"{current_balance:,}원"
         )
+
+
+    result3, result4 = st.columns(2)
 
     with result3:
 
+        if profit >= 0:
+
+            st.metric(
+                "수익",
+                f"+{profit:,}원"
+            )
+
+        else:
+
+            st.metric(
+                "손실",
+                f"{profit:,}원"
+            )
+
+    with result4:
+
         st.metric(
-            "총 수익률",
-            f"{total_profit_rate:+.2f}%"
-        )
-
-
-    # -----------------------------------------------------
-    # 세부 자산
-    # -----------------------------------------------------
-
-    detail1, detail2 = st.columns(2)
-
-    with detail1:
-
-        st.write(
-            f"📊 현재 주식 평가금액  "
-            f"**{stock_value:,}원**"
-        )
-
-    with detail2:
-
-        st.write(
-            f"💵 남은 현금  "
-            f"**{remaining_money:,}원**"
+            "수익률",
+            f"{profit_rate:+.2f}%"
         )
 
 
     # =====================================================
-    # 수익 / 손실
+    # 수익 / 손실 메시지
     # =====================================================
 
-    if total_profit > 0:
+    if profit > 0:
 
         st.success(
-            f"🎉 총 **+{total_profit:,}원** "
-            f"수익입니다!"
+            f"🎉 **{profit:,}원 수익!**"
         )
 
-    elif total_profit < 0:
+    elif profit < 0:
 
         st.error(
-            f"📉 총 **{abs(total_profit):,}원** "
-            f"손실입니다."
+            f"📉 **{abs(profit):,}원 손실**"
         )
 
     else:
@@ -445,8 +437,6 @@ def show_market_result():
         reset_player()
 
         st.rerun()
-
-
 # =========================================================
 # 제목
 # =========================================================
